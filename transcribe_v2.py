@@ -94,6 +94,36 @@ VOICEPRINT_DIR = "voiceprints"
 # 0.55-0.70 is the common ECAPA range; lower = more permissive, may merge distinct speakers.
 SPEAKER_MATCH_THRESHOLD = 0.55
 
+# Whisper "no speech" probability cutoff. Segments where the model's no-speech
+# probability exceeds this are dropped. Higher = more aggressive about silence
+# (cuts hallucinations like "Thank you." but may drop very faint real speech).
+DEFAULT_NO_SPEECH_THRESHOLD = 0.6
+
+# Whisper large-v3 hallucinates these phrases over silence (training-data bias from
+# YouTube outros). When --filter-hallucinations is on (default), segments whose text
+# matches an entry below — case-insensitive, punctuation-stripped from the ends — are
+# dropped before being written to the transcript. Conservative list: real D&D speech
+# almost never matches these as a complete segment.
+HALLUCINATION_DENYLIST = frozenset({
+    "thank you",
+    "thanks for watching",
+    "thank you for watching",
+    "thanks for watching everyone",
+    "thank you for watching everyone",
+    "thank you. bye",
+    "thanks",
+    "you",
+    "bye",
+    ".",
+    "..",
+    "...",
+})
+
+
+def _normalize_text(text: str) -> str:
+    """Lowercase, strip whitespace, strip trailing/leading punctuation for denylist matching."""
+    return text.strip().lower().strip(".,!?;: ")
+
 running = threading.Event()
 running.set()
 
@@ -350,10 +380,23 @@ def main():
                              f"voiceprint or a previously-seen speaker. Lower = more permissive merging "
                              f"(fewer 'Speaker_NN' splits but risk of merging different people). "
                              f"Typical range 0.35-0.60. Default: {SPEAKER_MATCH_THRESHOLD}")
+    parser.add_argument("--no-speech-threshold", type=float, default=DEFAULT_NO_SPEECH_THRESHOLD,
+                        dest="no_speech_threshold",
+                        help=f"Whisper's silence cutoff: segments with no-speech probability above this "
+                             f"are dropped. Raise toward 0.8 to reduce hallucinations like 'Thank you.' "
+                             f"over silent audio; lower toward 0.4 to capture faint real speech. "
+                             f"Default: {DEFAULT_NO_SPEECH_THRESHOLD}")
+    parser.add_argument("--filter-hallucinations", action=argparse.BooleanOptionalAction, default=True,
+                        help="Drop segments whose text matches a small denylist of phrases that "
+                             "Whisper large-v3 commonly hallucinates over silence ('Thank you.', "
+                             "'Thanks for watching.', etc.). Default: enabled. "
+                             "Use --no-filter-hallucinations to disable.")
     args = parser.parse_args()
 
     if not 0.0 <= args.threshold <= 1.0:
         parser.error(f"--threshold must be between 0.0 and 1.0, got {args.threshold}")
+    if not 0.0 <= args.no_speech_threshold <= 1.0:
+        parser.error(f"--no-speech-threshold must be between 0.0 and 1.0, got {args.no_speech_threshold}")
 
     audio_device = find_device(args.device)
     buffer_max_samples = SAMPLE_RATE * args.buffer_seconds
@@ -372,10 +415,15 @@ def main():
     enrolled_summary = ", ".join(voiceprints.keys()) if voiceprints else "(none — speakers will be Speaker_NN)"
 
     threshold_note = f" (threshold {args.threshold:.2f})" if not args.no_diarize else ""
+    asr_note = (
+        f"no_speech_threshold={args.no_speech_threshold:.2f}, "
+        f"filter_hallucinations={args.filter_hallucinations}"
+    )
     header = (
         f"=== D&D Session Transcript (v2) ===\n"
         f"Started: {session_start.strftime('%Y-%m-%d %H:%M:%S')}\n"
         f"ASR: {WHISPER_MODEL_ID} ({args.compute_type} on {compute_device})\n"
+        f"ASR tuning: {asr_note}\n"
         f"Diarization: {'disabled' if args.no_diarize else DIARIZATION_MODEL_ID}{threshold_note}\n"
         f"Enrolled speakers: {enrolled_summary}\n"
         f"{'=' * 40}\n"
@@ -456,7 +504,7 @@ def main():
                 ),
                 word_timestamps=False,
                 condition_on_previous_text=True,
-                no_speech_threshold=0.6,
+                no_speech_threshold=args.no_speech_threshold,
             )
             segments = list(segments_iter)
 
@@ -476,6 +524,8 @@ def main():
                 ts = format_elapsed(wall_seconds)
                 text = segment.text.strip()
                 if not text:
+                    continue
+                if args.filter_hallucinations and _normalize_text(text) in HALLUCINATION_DENYLIST:
                     continue
                 if turns:
                     cid = speaker_for_segment(segment.start, segment.end, turns)

@@ -141,6 +141,35 @@ was used. Typical range to experiment in: **0.35–0.60**. Re-enrolling from the
 audio path used at session time (see [ENROLLMENT.md](ENROLLMENT.md)) is usually a
 bigger lever than threshold tuning — try that first.
 
+### Hallucination control (silence → "Thank you." filter)
+
+Whisper large-v3 is famously biased toward emitting "Thank you." / "Thanks for
+watching." over silent or near-silent audio (training-data bias from YouTube
+outros). Two flags address this, used together:
+
+```
+start_v2.bat --no-speech-threshold 0.6 --filter-hallucinations    # default
+start_v2.bat --no-speech-threshold 0.8                            # stricter silence cutoff
+start_v2.bat --no-filter-hallucinations                           # turn the denylist OFF
+```
+
+- **`--no-speech-threshold FLOAT`** (default `0.6`, range `0.0–1.0`) — Whisper's
+  per-segment cutoff: if the no-speech probability exceeds this value, the segment
+  is dropped before transcription. Push toward **0.8** to be more aggressive about
+  silence (cuts most hallucinations); lower toward **0.4** if you find faint real
+  speech being dropped.
+
+- **`--filter-hallucinations` / `--no-filter-hallucinations`** (default **on**) —
+  Post-filter that drops segments whose text exactly matches a small denylist:
+  `"Thank you."`, `"Thanks for watching."`, `"you"`, `".",` and a few more. The
+  matching is case-insensitive and ignores leading/trailing punctuation, but the
+  text must equal a denylist entry as a whole — so a real player saying "Thanks
+  for the heads up, DM" will not match. Disable with `--no-filter-hallucinations`
+  if you want to inspect the raw model output (e.g. for debugging).
+
+Both values are recorded in the session header (`ASR tuning: ...`) so you can see
+later what was used.
+
 ### Whisper-only mode (skip diarization)
 
 ```
@@ -191,8 +220,21 @@ in `SpeakerRegistry` fires below threshold. Mitigations:
 
 1. Enroll the regulars — anchored matching against a 30 s reference is way more
    stable than running-mean clustering.
-2. Lower `SPEAKER_MATCH_THRESHOLD` from 0.55 toward 0.45 (in `transcribe_v2.py`).
+2. Lower the threshold at runtime: `start_v2.bat --threshold 0.40`.
 3. Long-term: dual-stream OBS split (Discord/EMEET separate), see ROADMAP.md.
+
+### Lots of `Speaker_??: Thank you.` lines
+
+Whisper hallucination over silent audio. Fix at runtime — both flags are on the
+right side, used together:
+
+```
+start_v2.bat --no-speech-threshold 0.8
+```
+
+If that doesn't fully eliminate them, the post-filter is on by default (you'd see
+the affected lines if you ran with `--no-filter-hallucinations`). See "Hallucination
+control" in the Tuning section above for the full explanation.
 
 ### `WinError 1314: A required privilege is not held by the client`
 
