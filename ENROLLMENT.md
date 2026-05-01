@@ -242,11 +242,20 @@ Windows. Re-run with `--device <index>` after checking `list_devices.py`.
 ### Speaker still labels as `Speaker_NN` even after enrollment
 
 Cosine similarity didn't exceed the 0.55 threshold. Causes, in order of likelihood:
-1. **Channel mismatch** — see workaround above.
+1. **Channel-path mismatch.** Best fix: re-enroll from the *same* audio device that
+   the session listens on. If you run `start_v2.bat` against the VB-Audio cable
+   (typical setup), enroll the same way:
+   ```
+   .venv_v2\Scripts\python.exe enroll.py Bilbo --device 5 --overwrite
+   ```
+   Have the player talk normally while OBS is running so their voice goes through
+   the same mic + OBS + cable path as during a real session. This is usually the
+   single biggest accuracy lever.
 2. **Bad enrollment recording** — too short, too quiet, or too much background noise.
    Re-enroll with `--overwrite` and a cleaner sample.
-3. **Threshold too strict** — edit `SPEAKER_MATCH_THRESHOLD` in `transcribe_v2.py`,
-   try 0.45. Risk: distinct people getting merged.
+3. **Threshold too strict** — pass `--threshold 0.40` to `start_v2.bat` to relax
+   the cutoff at runtime (no code edit needed). See SETUP_v2.md §"Speaker-match
+   threshold". Risk: distinct people getting merged at very low values.
 
 ### `OSError: [WinError 1314] A required privilege is not held by the client`
 

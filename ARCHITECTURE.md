@@ -83,7 +83,8 @@ merge: for each Whisper segment, find pyannote turn with greatest overlap → us
 - **`SpeakerRegistry`** — maintains running-mean ECAPA embeddings per global speaker
   label. New chunk's clusters are cosine-matched against (a) enrolled voiceprints
   and (b) previously-seen running-mean embeddings. If no match exceeds
-  `SPEAKER_MATCH_THRESHOLD` (0.55), a new `Speaker_NN` label is created.
+  `SPEAKER_MATCH_THRESHOLD` (default 0.55, overridable at runtime via `--threshold`),
+  a new `Speaker_NN` label is created.
 - **`compute_cluster_embeddings`** — averages ECAPA embeddings across each
   pyannote cluster's turns within the chunk. Skips turns under 0.5 s as too noisy.
 - **`speaker_for_segment`** — for a Whisper segment's `[start, end]` range, returns

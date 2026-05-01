@@ -345,7 +345,15 @@ def main():
     parser.add_argument("--buffer-seconds", type=int, default=DEFAULT_BUFFER_SECONDS, help="Max audio buffer before flush")
     parser.add_argument("--cpu", action="store_true", help="Run inference on CPU")
     parser.add_argument("--no-diarize", action="store_true", help="Disable diarization (Whisper-only mode for debugging)")
+    parser.add_argument("--threshold", type=float, default=SPEAKER_MATCH_THRESHOLD,
+                        help=f"Cosine-similarity threshold for matching a speaker cluster to an enrolled "
+                             f"voiceprint or a previously-seen speaker. Lower = more permissive merging "
+                             f"(fewer 'Speaker_NN' splits but risk of merging different people). "
+                             f"Typical range 0.35-0.60. Default: {SPEAKER_MATCH_THRESHOLD}")
     args = parser.parse_args()
+
+    if not 0.0 <= args.threshold <= 1.0:
+        parser.error(f"--threshold must be between 0.0 and 1.0, got {args.threshold}")
 
     audio_device = find_device(args.device)
     buffer_max_samples = SAMPLE_RATE * args.buffer_seconds
@@ -363,11 +371,12 @@ def main():
     voiceprints = load_voiceprints(VOICEPRINT_DIR)
     enrolled_summary = ", ".join(voiceprints.keys()) if voiceprints else "(none — speakers will be Speaker_NN)"
 
+    threshold_note = f" (threshold {args.threshold:.2f})" if not args.no_diarize else ""
     header = (
         f"=== D&D Session Transcript (v2) ===\n"
         f"Started: {session_start.strftime('%Y-%m-%d %H:%M:%S')}\n"
         f"ASR: {WHISPER_MODEL_ID} ({args.compute_type} on {compute_device})\n"
-        f"Diarization: {'disabled' if args.no_diarize else DIARIZATION_MODEL_ID}\n"
+        f"Diarization: {'disabled' if args.no_diarize else DIARIZATION_MODEL_ID}{threshold_note}\n"
         f"Enrolled speakers: {enrolled_summary}\n"
         f"{'=' * 40}\n"
     )
@@ -395,7 +404,7 @@ def main():
         )
         print("Encoder loaded.", flush=True)
 
-        registry = SpeakerRegistry(voiceprints)
+        registry = SpeakerRegistry(voiceprints, threshold=args.threshold)
 
     print("\nAll models loaded.\n", flush=True)
 

@@ -118,9 +118,28 @@ verification, re-enrollment, and troubleshooting.
 ### Compute type (VRAM trade-off)
 
 ```
-start_v2.bat --compute-type float16     # ~3.5 GB Whisper VRAM, slightly higher accuracy
+start_v2.bat --compute-type float16       # ~3.5 GB Whisper VRAM, slightly higher accuracy
 start_v2.bat --compute-type int8_float16  # default, ~2.0 GB Whisper VRAM
 ```
+
+### Speaker-match threshold
+
+Cosine-similarity cutoff for matching a chunk's speaker cluster to an enrolled
+voiceprint or a previously-seen anonymous speaker. **Lower = more permissive merging.**
+
+```
+start_v2.bat --threshold 0.55   # default — strict, conservative matching
+start_v2.bat --threshold 0.40   # more permissive — short utterances of the same
+                                #   speaker are more likely to be linked together
+                                #   (good starting point if you see many spurious
+                                #   Speaker_NN splits in your transcripts)
+start_v2.bat --threshold 0.30   # very permissive — risk of merging different people
+```
+
+The threshold is logged in the session header so each transcript records what value
+was used. Typical range to experiment in: **0.35–0.60**. Re-enrolling from the same
+audio path used at session time (see [ENROLLMENT.md](ENROLLMENT.md)) is usually a
+bigger lever than threshold tuning — try that first.
 
 ### Whisper-only mode (skip diarization)
 

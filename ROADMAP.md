@@ -5,14 +5,16 @@ by impact-per-effort.
 
 ## Near-term (low effort, high value)
 
-### Tune `SPEAKER_MATCH_THRESHOLD` based on real session data
+### Tune the speaker-match threshold based on real session data
 
-Current default: 0.55. In the test session, single-word utterances ("three") and
-channel-switched audio (Discord ↔ EMEET) ended up as separate speakers. Worth
-trying 0.45 and seeing if accuracy on real (longer) utterances stays acceptable
-without merging different speakers.
+The `--threshold` CLI flag is in (default 0.55). Open question: what value works
+best in real D&D sessions? In a single-speaker test, 0.55 over-segmented short
+utterances (same Bilbo voice → 14 different `Speaker_NN` labels). Worth measuring
+accuracy at 0.45 / 0.40 / 0.35 across a real session — both for false splits (same
+person → multiple labels, what we have today) and false merges (different people
+→ same label, the risk of going too low).
 
-Add a `--threshold` CLI flag for easy experimentation without editing the file.
+If 0.45–0.40 turns out reliably better, change the default in `transcribe_v2.py`.
 
 ### Speaker enrollment for the regulars
 
@@ -162,7 +164,7 @@ Leaderboard and ~50× faster.
 - [ ] `Speaker_??` lines in real sessions — investigate frequency, decide whether
       to drop short-turn cutoff or inherit-most-recent. (See ARCHITECTURE.md
       §"Speaker_?? handling".)
-- [ ] Add `--threshold` CLI flag.
+- [x] Add `--threshold` CLI flag. (Done. Default 0.55. See SETUP_v2.md.)
 - [ ] Build the retroactive-rename script for the JSONL sidecar.
 - [ ] Test: does `start_v2.bat --compute-type float16` actually fit alongside
       pyannote on 8 GB? Was tested only with int8_float16.
