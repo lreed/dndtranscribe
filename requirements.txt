@@ -1,0 +1,5 @@
+faster-whisper==1.2.1
+sounddevice==0.5.5
+numpy>=2.0
+nvidia-cuda-runtime-cu12
+nvidia-cublas-cu12

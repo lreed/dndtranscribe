@@ -1,0 +1,27 @@
+# v2 dependencies (separate venv: .venv_v2 with Python 3.12)
+#
+# Install order — torch first from the cu128 PyTorch index (Blackwell sm_120 support
+# for the RTX 5060 requires CUDA >= 12.8):
+#
+#   py -3.12 -m venv .venv_v2
+#   .venv_v2\Scripts\python.exe -m pip install torch==2.7.* torchaudio==2.7.* \
+#       --index-url https://download.pytorch.org/whl/cu128
+#   .venv_v2\Scripts\python.exe -m pip install -r requirements_v2.txt
+#
+# Note pins:
+#   - torch/torchaudio 2.7.x — newest version with cu128 + still has the torchaudio
+#     APIs (list_audio_backends, AudioMetaData) that pyannote 3.3.2 calls.
+#   - pyannote.audio 3.3.2 — last 3.x release; 4.0.x has a 6x VRAM regression.
+#   - speechbrain <1.0 — pyannote 3.3.2 declares >=1.0 but speechbrain 1.x has a
+#     lazy-import bug with k2 that fires from inspect.stack() during pyannote
+#     pipeline load. 0.5.16 works fine for our usage (loading ECAPA only).
+#   - huggingface_hub <1.0 — 1.0+ removed `use_auth_token` kwarg that pyannote uses.
+
+faster-whisper>=1.0.3
+pyannote.audio==3.3.2
+speechbrain<1.0
+huggingface_hub<1.0
+matplotlib
+sounddevice
+soundfile
+numpy

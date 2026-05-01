@@ -1,0 +1,41 @@
+# Virtualenvs
+.venv/
+.venv_v2/
+venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Session output (may contain personal/sensitive content)
+transcripts/
+voiceprints/
+
+# SpeechBrain default fetch directory (created at first run)
+pretrained_models/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Claude Code local state (settings, plans, todos). Remove this line if you want
+# to share project-level Claude config with collaborators.
+.claude/
+
+# Local credentials — never commit
+*.token
+.env
+.env.*
+huggingface_token*
+
+# Build / cache
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
